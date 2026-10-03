@@ -1,0 +1,51 @@
+# Três instâncias da mesma imagem, volume compartilhado e rede bridge própria.
+x-app: &app
+  build:
+    context: ./app
+    dockerfile: Dockerfile
+  image: msg-app:latest
+  volumes:
+    - messages_data:/data
+  networks:
+    - msgnet
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:5000/health')"]
+    interval: 10s
+    timeout: 3s
+    retries: 3
+
+services:
+  app1:
+    <<: *app
+    container_name: app1
+    ports:
+      - "5001:5000"
+    environment:
+      INSTANCE_NAME: app1
+      PEERS: app2:5000,app3:5000
+
+  app2:
+    <<: *app
+    container_name: app2
+    ports:
+      - "5002:5000"
+    environment:
+      INSTANCE_NAME: app2
+      PEERS: app1:5000,app3:5000
+
+  app3:
+    <<: *app
+    container_name: app3
+    ports:
+      - "5003:5000"
+    environment:
+      INSTANCE_NAME: app3
+      PEERS: app1:5000,app2:5000
+
+volumes:
+  messages_data:
+
+networks:
+  msgnet:
+    driver: bridge
